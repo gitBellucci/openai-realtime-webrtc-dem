@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Markdown must stay text for GitHub rendering + diff tools
+*.md text eol=lf
+README.md text eol=lf
