@@ -1,0 +1,17 @@
+{
+  "name": "openai-realtime-webrtc-demo",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Démo locale : traduction vocale temps réel (gpt-realtime-translate) + assistant (gpt-realtime-2) via WebRTC.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0"
+  }
+}

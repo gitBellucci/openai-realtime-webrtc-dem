@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Calque_1" data-name="Calque 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 190 190">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #111;
+      }
+
+      .cls-2 {
+        fill: #f82f02;
+      }
+
+      .cls-3 {
+        filter: url(#outer-glow-1);
+      }
+    </style>
+    <filter id="outer-glow-1" x="15.43" y="15.71" width="159" height="158" filterUnits="userSpaceOnUse">
+      <feOffset dx="0" dy="0"/>
+      <feGaussianBlur result="blur" stdDeviation="6"/>
+      <feFlood flood-color="#f82f02" flood-opacity=".3"/>
+      <feComposite in2="blur" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <rect class="cls-1" y="0" width="190" height="190" rx="42.43" ry="42.43"/>
+  <g class="cls-3">
+    <g id="_Répétition_radiale_" data-name="&amp;lt;Répétition radiale&amp;gt;">
+      <path class="cls-2" d="M64.17,128.96l-13.22,7.73-7.21-12.32,11.85-6.93c4.4-2.57,9.8-2.8,14.39-.59h0c4.6,2.21,7.8,6.55,8.55,11.6l2.01,13.58-14.13,2.09-2.24-15.16Z"/>
+    </g>
+    <g id="_Répétition_radiale_-2" data-name="&amp;lt;Répétition radiale&amp;gt;">
+      <path class="cls-2" d="M48.13,90.8l-14.29-5.52,5.14-13.32,12.8,4.94c4.76,1.84,8.29,5.92,9.44,10.89h0c1.14,4.97-.26,10.18-3.74,13.91l-9.36,10.04-10.44-9.74,10.45-11.2Z"/>
+    </g>
+    <g id="_Répétition_radiale_-3" data-name="&amp;lt;Répétition radiale&amp;gt;">
+      <path class="cls-2" d="M67.97,54.47l-4.59-14.61,13.62-4.29,4.12,13.09c1.53,4.87.55,10.17-2.63,14.16h0c-3.17,3.99-8.12,6.15-13.21,5.75l-13.69-1.06,1.11-14.24,15.27,1.19Z"/>
+    </g>
+    <g id="_Répétition_radiale_-4" data-name="&amp;lt;Répétition radiale&amp;gt;">
+      <path class="cls-2" d="M108.74,47.33l8.56-12.7,11.84,7.97-7.67,11.38c-2.85,4.23-7.61,6.77-12.71,6.78h0c-5.1,0-9.87-2.52-12.73-6.74l-7.7-11.36,11.82-8.01,8.59,12.68Z"/>
+    </g>
+    <g id="_Répétition_radiale_-5" data-name="&amp;lt;Répétition radiale&amp;gt;">
+      <path class="cls-2" d="M139.74,74.75l15.27-1.23,1.15,14.23-13.68,1.1c-5.08.41-10.04-1.73-13.22-5.71h0c-3.19-3.98-4.19-9.29-2.67-14.16l4.08-13.11,13.64,4.25-4.56,14.63Z"/>
+    </g>
+    <g id="_Répétition_radiale_-6" data-name="&amp;lt;Répétition radiale&amp;gt;">
+      <path class="cls-2" d="M137.63,116.09l10.48,11.17-10.41,9.77-9.39-10.01c-3.49-3.72-4.91-8.93-3.78-13.9h0c1.13-4.97,4.65-9.06,9.4-10.91l12.79-4.98,5.18,13.31-14.28,5.56Z"/>
+    </g>
+    <g id="_Répétition_radiale_-7" data-name="&amp;lt;Répétition radiale&amp;gt;">
+      <path class="cls-2" d="M104,140.21l-2.2,15.16-14.13-2.05,1.97-13.58c.73-5.05,3.92-9.4,8.51-11.62h0c4.59-2.22,9.99-2.01,14.4.55l11.87,6.9-7.17,12.35-13.25-7.7Z"/>
+    </g>
+  </g>
+</svg>

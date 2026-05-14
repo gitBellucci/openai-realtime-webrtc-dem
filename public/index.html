@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#111111" />
+    <title>Prompt HQ · Realtime voice</title>
+    <link rel="icon" type="image/png" href="/brand/png/favicon-02.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      (function () {
+        try {
+          var k = "phq-theme";
+          var stored = localStorage.getItem(k);
+          var dark =
+            stored === "dark" ||
+            (stored !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute("content", dark ? "#0c0c0f" : "#111111");
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="/" aria-label="Prompt HQ">
+          <img
+            class="brand__logo"
+            src="/brand/svg/wordmark-white.svg"
+            alt="Prompt HQ"
+            width="168"
+            height="32"
+          />
+        </a>
+        <div class="site-header__actions">
+          <span class="site-header__tag">OpenAI Realtime</span>
+          <button
+            type="button"
+            id="theme-toggle"
+            class="theme-toggle"
+            aria-pressed="false"
+            aria-label="Activer le thème sombre"
+            title="Thème"
+          >
+            <svg class="theme-toggle__icon theme-toggle__icon--moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M21.64 13a9 9 0 01-11.31-11.31A7 7 0 1019 21.64 9 9 0 0121.64 13z"
+              />
+            </svg>
+            <svg class="theme-toggle__icon theme-toggle__icon--sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M6.76 4.7l-1.8-1.79-1.41 1.41 1.79 1.8 1.42-1.42zm-.09 14.59l-1.79 1.8 1.41 1.41 1.8-1.79-1.42-1.42zM12 4V1h-1v3h1zm0 19v-3h-1v3h1zm8.24-9.24h3v-1h-3v1zM1 12v1h3v-1H1zm18.66-7.24l1.79-1.8-1.41-1.41-1.8 1.79 1.42 1.42zM4.7 17.24l-1.79 1.8 1.41 1.41 1.8-1.79-1.42-1.42zM12 18a6 6 0 100-12 6 6 0 000 12z"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="shell">
+      <div class="hero">
+        <h1 class="hero__title">Voix en direct</h1>
+        <p class="hero__lead">
+          <strong>Traduction live</strong> via l’API
+          <a href="https://developers.openai.com/api/docs/guides/realtime-translation">Realtime Translation</a>
+          (<code>gpt-realtime-translate</code>). <strong>Assistant</strong> sur
+          <code>gpt-realtime-2</code> avec outils.
+        </p>
+      </div>
+
+      <div class="tabs" role="tablist" aria-label="Mode">
+        <button type="button" class="tab tab--active" role="tab" aria-selected="true" data-tab="translate">
+          Traduction live
+        </button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-tab="assistant">
+          Assistant
+        </button>
+      </div>
+
+      <section id="panel-translate" class="panel panel--active" role="tabpanel">
+        <div class="panel__head">
+          <img class="panel__icon" src="/brand/svg/icon-black.svg" alt="" width="36" height="36" aria-hidden="true" />
+          <div>
+            <h2 class="panel__title">Traduction live</h2>
+            <p class="panel__meta"><code>gpt-realtime-translate</code></p>
+          </div>
+        </div>
+        <p class="panel__text">
+          Choisissez la langue de <strong>sortie</strong> parmi les codes pris en charge par
+          <a href="https://developers.openai.com/api/docs/models/gpt-realtime-translate">gpt-realtime-translate</a>
+          (13 langues). La source est détectée automatiquement.
+        </p>
+        <p class="hint">
+          Si la traduction <strong>semble se couper</strong> quand le modèle parle, le navigateur étouffe souvent le
+          micro (echo cancellation). Gardez <em>Micro brut</em> coché et privilégiez un <strong>casque</strong>.
+        </p>
+        <label class="check">
+          <input type="checkbox" id="translation-raw-mic" checked />
+          <span>Micro brut (désactive echo cancellation / NS / AGC pour la traduction)</span>
+        </label>
+        <label class="field">
+          <span class="field__label">Langue cible</span>
+          <select id="target-lang" class="field__input" aria-describedby="target-lang-hint">
+            <option value="es">Espagnol (es)</option>
+            <option value="pt">Portugais (pt)</option>
+            <option value="fr">Français (fr)</option>
+            <option value="ja">Japonais (ja)</option>
+            <option value="ru">Russe (ru)</option>
+            <option value="zh">Chinois (zh)</option>
+            <option value="de">Allemand (de)</option>
+            <option value="ko">Coréen (ko)</option>
+            <option value="hi">Hindi (hi)</option>
+            <option value="id">Indonésien (id)</option>
+            <option value="vi">Vietnamien (vi)</option>
+            <option value="it">Italien (it)</option>
+            <option value="en">Anglais (en)</option>
+          </select>
+        </label>
+        <p id="target-lang-hint" class="field-hint">
+          Liste alignée sur le validateur du
+          <a href="https://github.com/openai/openai-cookbook/blob/main/examples/voice_solutions/realtime_translation_guide/browser-translation-demo/src/session.js">démo navigateur OpenAI</a>.
+        </p>
+        <div class="actions">
+          <button id="btn-translate" class="btn btn--primary" type="button">Démarrer</button>
+          <button id="btn-stop-translate" class="btn btn--ghost" type="button" disabled>Arrêter</button>
+        </div>
+        <audio id="remote-audio-translate" class="visually-hidden" autoplay playsinline></audio>
+        <div class="subtitles">
+          <div class="subtitle-card">
+            <strong class="subtitle-card__label">Source (live)</strong>
+            <div class="subtitle-card__body chat-entry">
+              <div class="chat-entry__rail">
+                <div id="anim-listening" class="chat-entry__slot" hidden title="Écoute en cours">
+                  <div class="chat-entry__badge">
+                    <img
+                      class="chat-entry__img chat-entry__img--spin"
+                      src="/brand/png/icon-01.png"
+                      alt=""
+                      width="18"
+                      height="18"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="chat-entry__main">
+                <pre id="src-transcript" class="transcript transcript--chat"></pre>
+              </div>
+            </div>
+          </div>
+          <div class="subtitle-card">
+            <strong class="subtitle-card__label">Traduction (live)</strong>
+            <div class="subtitle-card__body chat-entry">
+              <div class="chat-entry__rail">
+                <div id="anim-translating" class="chat-entry__slot" hidden title="Traduction en cours">
+                  <div class="chat-entry__bounce">
+                    <img
+                      class="chat-entry__img chat-entry__img--bounce"
+                      src="/brand/png/icon-01.png"
+                      alt=""
+                      width="18"
+                      height="18"
+                    />
+                    <div class="chat-entry__shadow" aria-hidden="true"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="chat-entry__main">
+                <pre id="out-transcript" class="transcript transcript--chat"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+        <pre id="log-translate" class="log" aria-live="polite"></pre>
+      </section>
+
+      <section id="panel-assistant" class="panel" role="tabpanel">
+        <div class="panel__head">
+          <img class="panel__icon" src="/brand/svg/icon-black.svg" alt="" width="36" height="36" aria-hidden="true" />
+          <div>
+            <h2 class="panel__title">Assistant vocal</h2>
+            <p class="panel__meta"><code>gpt-realtime-2</code></p>
+          </div>
+        </div>
+        <p class="panel__text">
+          Multipart <code>sdp</code> + <code>session</code> via le serveur, puis <code>session.update</code> pour
+          <code>check_calendar</code>.
+        </p>
+        <div class="actions">
+          <button id="btn-assistant" class="btn btn--primary" type="button">Démarrer</button>
+          <button id="btn-stop-assistant" class="btn btn--ghost" type="button" disabled>Arrêter</button>
+        </div>
+        <audio id="remote-audio-assistant" class="visually-hidden" autoplay playsinline></audio>
+        <pre id="log-assistant" class="log" aria-live="polite"></pre>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <img class="site-footer__mark" src="/brand/svg/icon-02.svg" alt="" width="28" height="28" aria-hidden="true" />
+      <span>Charte couleurs Prompt HQ · Stack Sans</span>
+    </footer>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
