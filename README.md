@@ -1,7 +1,5 @@
 # OpenAI Realtime WebRTC Demo
 
-**Repository:** https://github.com/gitBellucci/openai-realtime-webrtc-dem
-
 Local Node + browser demo for OpenAI **Realtime** over **WebRTC**:
 
 - **Live translation** - `gpt-realtime-translate` (WebRTC to `/v1/realtime/translations/calls` after a server-minted `client_secret`). Source transcription uses **`gpt-realtime-whisper`**. Guide: https://developers.openai.com/api/docs/guides/realtime-translation
