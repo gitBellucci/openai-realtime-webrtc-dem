@@ -45,6 +45,10 @@ Open http://localhost:8787
 
 Keep the API key on the server only. Local testing only.
 
+## Related: Chrome extension (separate repo)
+
+**Tab Hear Translate** lives in a sibling folder / repo: [`tab-hear-translate`](../tab-hear-translate) — captures **another Chrome tab’s audio** and runs live translation in-extension (BYOK). This web demo does **not** include that extension; use the other project for tab capture.
+
 ## Links
 
 - https://openai.com/index/advancing-voice-intelligence-with-new-models-in-the-api/
