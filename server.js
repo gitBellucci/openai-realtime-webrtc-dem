@@ -5,10 +5,21 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OPENAI_BASE = "https://api.openai.com";
-const apiKey = process.env.OPENAI_API_KEY;
+
+/** Vercel: use env name `realtime`. Local: `realtime` or legacy `OPENAI_API_KEY` in `.env`. */
+function getOpenAIApiKey() {
+  const fromRealtime = process.env.realtime;
+  const fromLegacy = process.env.OPENAI_API_KEY;
+  const raw = fromRealtime ?? fromLegacy;
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+const apiKey = getOpenAIApiKey();
+const missingKeyHint =
+  "Set env `realtime` (e.g. on Vercel) or `OPENAI_API_KEY` in `.env` for local dev.";
 
 if (!apiKey) {
-  console.warn("Warning: OPENAI_API_KEY is not set. Requests will fail until you export it.");
+  console.warn(`Warning: OpenAI API key missing. ${missingKeyHint}`);
 }
 
 const app = express();
@@ -37,7 +48,7 @@ function buildAssistantSessionJson() {
 /** Assistant WebRTC (gpt-realtime-2) */
 app.post("/api/realtime/call", async (req, res) => {
   if (!apiKey) {
-    return res.status(500).type("text/plain").send("Server missing OPENAI_API_KEY");
+    return res.status(500).type("text/plain").send(`Server missing API key. ${missingKeyHint}`);
   }
 
   const sdpOffer = typeof req.body?.sdp === "string" ? req.body.sdp : "";
@@ -105,7 +116,7 @@ function normalizeTargetLanguage(raw) {
  */
 app.post("/api/translation/client-secret", async (req, res) => {
   if (!apiKey) {
-    return res.status(500).json({ error: "Server missing OPENAI_API_KEY" });
+    return res.status(500).json({ error: `Server missing API key. ${missingKeyHint}` });
   }
   const targetLanguage = normalizeTargetLanguage(req.body?.targetLanguage);
   if (targetLanguage === null) {

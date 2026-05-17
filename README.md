@@ -16,8 +16,20 @@ UI includes light/dark theme; assets under `public/brand/`.
 ## Setup
 
 1. `cp .env.example .env` (Windows: `Copy-Item .env.example .env`)
-2. Set `OPENAI_API_KEY=sk-...` in `.env` (never commit `.env`)
-3. Optional: `OPENAI_SAFETY_IDENTIFIER`, `PORT` (default **8787**)
+2. Set your key in `.env` (never commit `.env`). The server reads **`realtime` first**, then **`OPENAI_API_KEY`** (legacy):
+
+   ```env
+   realtime=sk-...
+   ```
+
+   or:
+
+   ```env
+   OPENAI_API_KEY=sk-...
+   ```
+
+3. **Vercel:** add env var **`realtime`** (Sensitive), redeploy.
+4. Optional: `OPENAI_SAFETY_IDENTIFIER`, `PORT` (default **8787**)
 
 ## Run
 
