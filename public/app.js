@@ -192,22 +192,16 @@ function showTranslateIdleOverlays() {
   if (trans) trans.hidden = false;
 }
 
-/** OpenAI browser translation demo uses raw capture constraints so DSP does not gate the send track. */
-async function getTranslationMicStream(raw) {
-  const audio = raw
-    ? {
-        channelCount: 1,
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-      }
-    : {
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      };
-  return navigator.mediaDevices.getUserMedia({ audio, video: false });
+async function getTranslationMicStream() {
+  return navigator.mediaDevices.getUserMedia({
+    audio: {
+      channelCount: 1,
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    },
+    video: false,
+  });
 }
 
 const OUTPUT_TRANSCRIPT_EVENTS = new Set(["session.output_transcript.delta"]);
@@ -243,7 +237,6 @@ async function startLiveTranslate() {
   const outEl = document.getElementById("out-transcript");
   const audioEl = document.getElementById("remote-audio-translate");
   const targetRaw = document.getElementById("target-lang").value || "es";
-  const rawMic = document.getElementById("translation-raw-mic").checked;
 
   resetTranslateIdleOverlays();
 
@@ -253,10 +246,8 @@ async function startLiveTranslate() {
 
   const btn = document.getElementById("btn-translate");
   const stopBtn = document.getElementById("btn-stop-translate");
-  const rawCheckbox = document.getElementById("translation-raw-mic");
   btn.disabled = true;
   stopBtn.disabled = true;
-  rawCheckbox.disabled = true;
 
   const secretRes = await fetch("/api/translation/client-secret", {
     method: "POST",
@@ -268,7 +259,6 @@ async function startLiveTranslate() {
     logLine(logEl, `client_secret error: ${JSON.stringify(secretJson)}`);
     btn.disabled = false;
     stopBtn.disabled = true;
-    rawCheckbox.disabled = false;
     return;
   }
   const clientSecret =
@@ -279,24 +269,22 @@ async function startLiveTranslate() {
     logLine(logEl, `unexpected client secret payload: ${JSON.stringify(secretJson)}`);
     btn.disabled = false;
     stopBtn.disabled = true;
-    rawCheckbox.disabled = false;
     return;
   }
 
   let ms;
   try {
-    ms = await getTranslationMicStream(rawMic);
+    ms = await getTranslationMicStream();
   } catch (e) {
     logLine(logEl, `getUserMedia failed: ${e instanceof Error ? e.message : String(e)}`);
     btn.disabled = false;
     stopBtn.disabled = true;
-    rawCheckbox.disabled = false;
     return;
   }
 
   translateLocalStream = ms;
   for (const t of ms.getAudioTracks()) {
-    t.addEventListener("mute", () => logLine(logEl, "mic track muted (browser gating — try Raw mic + headphones)"));
+    t.addEventListener("mute", () => logLine(logEl, "mic track muted (browser gating — try headphones)"));
     t.addEventListener("unmute", () => logLine(logEl, "mic track unmuted"));
   }
 
@@ -345,16 +333,12 @@ async function startLiveTranslate() {
     return;
   }
   await pc.setRemoteDescription({ type: "answer", sdp: answerText });
-  logLine(
-    logEl,
-    `connected (gpt-realtime-translate). Raw mic=${rawMic} — matches OpenAI cookbook capture tuning.`
-  );
+  logLine(logEl, "connected (gpt-realtime-translate)");
 }
 
 function stopLiveTranslate() {
   const btn = document.getElementById("btn-translate");
   const stopBtn = document.getElementById("btn-stop-translate");
-  const rawCheckbox = document.getElementById("translation-raw-mic");
   const audioEl = document.getElementById("remote-audio-translate");
   resetTranslateIdleOverlays();
   if (translatePc) {
@@ -367,7 +351,6 @@ function stopLiveTranslate() {
   if (audioEl) audioEl.srcObject = null;
   btn.disabled = false;
   stopBtn.disabled = true;
-  rawCheckbox.disabled = false;
 }
 
 /* ---------- Tabs ---------- */
