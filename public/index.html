@@ -130,6 +130,25 @@
           Liste alignée sur le validateur du
           <a href="https://github.com/openai/openai-cookbook/blob/main/examples/voice_solutions/realtime_translation_guide/browser-translation-demo/src/session.js">démo navigateur OpenAI</a>.
         </p>
+        <label class="field field--volume" for="translation-output-volume">
+          <span class="field__label">Volume sortie (voix traduite)</span>
+          <div class="volume-row">
+            <input
+              type="range"
+              id="translation-output-volume"
+              class="volume-row__range"
+              min="0"
+              max="100"
+              value="100"
+              step="1"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="100"
+              aria-label="Volume de la voix traduite"
+            />
+            <span id="translation-output-volume-value" class="volume-row__value" aria-live="polite">100%</span>
+          </div>
+        </label>
         <div class="actions">
           <button id="btn-translate" class="btn btn--primary" type="button">Démarrer</button>
           <button id="btn-stop-translate" class="btn btn--ghost" type="button" disabled>Arrêter</button>

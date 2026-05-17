@@ -360,6 +360,66 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   box-shadow: 0 0 0 3px rgba(248, 47, 2, 0.18);
 }
 
+.field--volume {
+  max-width: 22rem;
+}
+
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.volume-row__range {
+  flex: 1;
+  min-width: 0;
+  height: 0.35rem;
+  border-radius: var(--radius-pill);
+  accent-color: var(--scarlet);
+  cursor: pointer;
+}
+
+.volume-row__range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--white);
+  border: 2px solid var(--scarlet);
+  box-shadow: 0 2px 8px rgba(17, 17, 17, 0.2);
+  cursor: grab;
+}
+
+.volume-row__range:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+
+.volume-row__range::-moz-range-thumb {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--white);
+  border: 2px solid var(--scarlet);
+  box-shadow: 0 2px 8px rgba(17, 17, 17, 0.2);
+  cursor: grab;
+}
+
+.volume-row__range::-moz-range-track {
+  height: 0.45rem;
+  border-radius: var(--radius-pill);
+  background: var(--field-border);
+}
+
+.volume-row__value {
+  flex-shrink: 0;
+  min-width: 2.75rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--app-text-muted);
+}
+
 .check {
   display: flex;
   align-items: flex-start;

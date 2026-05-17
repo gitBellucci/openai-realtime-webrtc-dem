@@ -158,6 +158,55 @@ function stopAssistant() {
 
 /* ---------- Live translation (gpt-realtime-translate) ---------- */
 
+const TRANSLATION_OUTPUT_VOLUME_KEY = "phq-translation-output-volume";
+
+function getStoredTranslationOutputVolume() {
+  try {
+    const raw = localStorage.getItem(TRANSLATION_OUTPUT_VOLUME_KEY);
+    if (raw == null) return 1;
+    const n = parseFloat(raw);
+    if (Number.isFinite(n) && n >= 0 && n <= 1) return n;
+  } catch {
+    /* private mode, etc. */
+  }
+  return 1;
+}
+
+function initTranslationOutputVolume() {
+  const audioEl = document.getElementById("remote-audio-translate");
+  const slider = document.getElementById("translation-output-volume");
+  const valueEl = document.getElementById("translation-output-volume-value");
+  if (!audioEl || !slider) return;
+
+  const pct = Math.round(getStoredTranslationOutputVolume() * 100);
+  slider.value = String(pct);
+  audioEl.volume = pct / 100;
+  if (valueEl) valueEl.textContent = `${pct}%`;
+  slider.setAttribute("aria-valuenow", String(pct));
+
+  slider.addEventListener("input", () => {
+    const v = Math.min(100, Math.max(0, Number(slider.value)));
+    slider.value = String(v);
+    const vol = v / 100;
+    audioEl.volume = vol;
+    if (valueEl) valueEl.textContent = `${v}%`;
+    slider.setAttribute("aria-valuenow", String(v));
+    try {
+      localStorage.setItem(TRANSLATION_OUTPUT_VOLUME_KEY, String(vol));
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
+function applyTranslationOutputVolumeFromControls() {
+  const audioEl = document.getElementById("remote-audio-translate");
+  const slider = document.getElementById("translation-output-volume");
+  if (!audioEl || !slider) return;
+  const v = Math.min(100, Math.max(0, Number(slider.value)));
+  audioEl.volume = v / 100;
+}
+
 let translatePc = null;
 let translateLocalStream = null;
 
@@ -304,6 +353,7 @@ async function startLiveTranslate() {
   audioEl.srcObject = new MediaStream();
   pc.ontrack = ({ streams }) => {
     audioEl.srcObject = streams[0];
+    applyTranslationOutputVolumeFromControls();
     void audioEl.play().catch((err) => logLine(logEl, `remote audio play: ${err.message}`));
   };
 
@@ -411,3 +461,4 @@ document.getElementById("theme-toggle")?.addEventListener("click", () => {
 });
 
 syncThemeControls();
+initTranslationOutputVolume();
