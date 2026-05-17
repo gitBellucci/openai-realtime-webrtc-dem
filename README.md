@@ -16,20 +16,23 @@ UI includes light/dark theme; assets under `public/brand/`.
 ## Setup
 
 1. `cp .env.example .env` (Windows: `Copy-Item .env.example .env`)
-2. Set your key in `.env` (never commit `.env`). The server reads **`realtime` first**, then **`OPENAI_API_KEY`** (legacy):
-
-   ```env
-   realtime=sk-...
-   ```
-
-   or:
+2. Set your key in `.env` (never commit `.env`). The server reads **`OPENAI_API_KEY` first**, then **`realtime`**:
 
    ```env
    OPENAI_API_KEY=sk-...
    ```
 
-3. **Vercel:** add env var **`realtime`** (Sensitive), redeploy.
-4. Optional: `OPENAI_SAFETY_IDENTIFIER`, `PORT` (default **8787**)
+   or:
+
+   ```env
+   realtime=sk-...
+   ```
+
+3. **Vercel:** add **`OPENAI_API_KEY`** (recommended) or **`realtime`** (same value), mark Sensitive, then **Redeploy**. Easiest fix if something still fails: set **both** to the same key.
+
+4. **Monorepo:** this app lives in folder `openai-realtime-webrtc-dem`. In Vercel → Project → Settings → **Root Directory**, set **`openai-realtime-webrtc-dem`**. If this is wrong, Vercel may deploy another app or an old layout and your env + `server.js` updates will not match what runs in production.
+
+5. Optional: `OPENAI_SAFETY_IDENTIFIER`, `PORT` (default **8787**)
 
 ## Run
 
@@ -44,6 +47,7 @@ Open http://localhost:8787
 
 | Method | Path | Purpose |
 |--------|------|---------|
+| GET | `/api/health` | Returns whether an API key is visible to the server (no secret values). Use on Vercel to debug env. |
 | POST | `/api/translation/client-secret` | Body `{"targetLanguage":"fr"}` -> OpenAI `client_secrets` for translate + whisper transcription |
 | POST | `/api/realtime/call` | Body `{"sdp":"..."}` -> multipart to `/v1/realtime/calls` for `gpt-realtime-2` |
 
@@ -54,6 +58,11 @@ Open http://localhost:8787
 ## Security
 
 Keep the API key on the server only. Local testing only.
+
+### Vercel 500 `missing API key` but the variable is set
+
+1. Open `https://<your-deployment>/api/health` — if `openaiKeyConfigured` is false, the running function does not see `OPENAI_API_KEY` or `realtime` (wrong **Root Directory**, wrong project, or env not applied — redeploy after saving env).
+2. If the error text still says exactly `Server missing OPENAI_API_KEY` with no extra sentence, production is still running an **old** `server.js`; check the deployment **Git commit** matches your latest push.
 
 ## Related: Chrome extension (separate repo)
 

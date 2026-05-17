@@ -6,27 +6,42 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OPENAI_BASE = "https://api.openai.com";
 
-/** Vercel: use env name `realtime`. Local: `realtime` or legacy `OPENAI_API_KEY` in `.env`. */
+/**
+ * API key from env. Tries several names; skips empty strings (Vercel + dotenv edge cases).
+ * Prefer `OPENAI_API_KEY` on Vercel (standard) or `realtime` if you named it that in the dashboard.
+ */
 function getOpenAIApiKey() {
-  const fromRealtime = process.env.realtime;
-  const fromLegacy = process.env.OPENAI_API_KEY;
-  const raw = fromRealtime ?? fromLegacy;
-  return typeof raw === "string" ? raw.trim() : "";
+  const names = ["OPENAI_API_KEY", "realtime"];
+  for (const name of names) {
+    const v = process.env[name];
+    if (typeof v === "string") {
+      const t = v.trim();
+      if (t) return t;
+    }
+  }
+  return "";
 }
 
-const apiKey = getOpenAIApiKey();
 const missingKeyHint =
-  "Set env `realtime` (e.g. on Vercel) or `OPENAI_API_KEY` in `.env` for local dev.";
-
-if (!apiKey) {
-  console.warn(`Warning: OpenAI API key missing. ${missingKeyHint}`);
-}
+  "Set env `OPENAI_API_KEY` or `realtime` on Vercel (Project → Settings → Environment Variables), then redeploy. For local dev, use `.env`.";
 
 const app = express();
 const port = Number(process.env.PORT) || 8787;
 
 app.use(express.json({ limit: "2mb" }));
 app.use("/", express.static(join(__dirname, "public")));
+
+/** Debug: confirms env is visible to the serverless function (never returns the secret). */
+app.get("/api/health", (_req, res) => {
+  const key = getOpenAIApiKey();
+  res.json({
+    ok: true,
+    openaiKeyConfigured: Boolean(key),
+    hasEnvRealtime: Boolean(process.env.realtime?.trim()),
+    hasEnvOpenAIKey: Boolean(process.env.OPENAI_API_KEY?.trim()),
+    vercel: Boolean(process.env.VERCEL),
+  });
+});
 
 /** gpt-realtime-2 voice agent: multipart sdp + session to /v1/realtime/calls */
 function buildAssistantSessionJson() {
@@ -47,6 +62,7 @@ function buildAssistantSessionJson() {
 
 /** Assistant WebRTC (gpt-realtime-2) */
 app.post("/api/realtime/call", async (req, res) => {
+  const apiKey = getOpenAIApiKey();
   if (!apiKey) {
     return res.status(500).type("text/plain").send(`Server missing API key. ${missingKeyHint}`);
   }
@@ -115,6 +131,7 @@ function normalizeTargetLanguage(raw) {
  * @see https://developers.openai.com/api/docs/guides/realtime-translation
  */
 app.post("/api/translation/client-secret", async (req, res) => {
+  const apiKey = getOpenAIApiKey();
   if (!apiKey) {
     return res.status(500).json({ error: `Server missing API key. ${missingKeyHint}` });
   }
@@ -157,5 +174,8 @@ app.post("/api/translation/client-secret", async (req, res) => {
 });
 
 app.listen(port, () => {
+  if (!getOpenAIApiKey()) {
+    console.warn(`Warning: OpenAI API key missing. ${missingKeyHint}`);
+  }
   console.log(`Open http://localhost:${port}`);
 });
