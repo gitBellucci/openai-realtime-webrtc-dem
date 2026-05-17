@@ -160,8 +160,17 @@ function stopAssistant() {
 
 const TRANSLATION_OUTPUT_VOLUME_KEY = "phq-translation-output-volume";
 
-/** Max gain multiplier when using Web Audio (slider 250 % → 2.5×). */
+/** Max gain multiplier when using Web Audio (slider 250 % → 2.5× before makeup). */
 const TRANSLATION_OUTPUT_GAIN_MAX = 2.5;
+
+/**
+ * Translate model audio tends to be quieter than gpt-realtime-2; the assistant uses direct
+ * audio element output while translation goes through a GainNode. Apply makeup so 100 % slider ≈ assistant loudness.
+ */
+const TRANSLATION_OUTPUT_MAKEUP_GAIN = 1.42;
+
+/** Hard cap on effective gain (after makeup) to limit harsh clipping. */
+const TRANSLATION_OUTPUT_GAIN_CEILING = 2.85;
 
 let translationAudioCtx = null;
 let translationGainNode = null;
@@ -218,6 +227,10 @@ function applyTranslationOutputGainFromControls() {
   if (valueEl) valueEl.textContent = `${pct}%`;
 
   const gain = translationGainFromSliderPercent(pct);
+  const effectiveGain = Math.min(
+    TRANSLATION_OUTPUT_GAIN_CEILING,
+    gain * TRANSLATION_OUTPUT_MAKEUP_GAIN
+  );
   try {
     localStorage.setItem(TRANSLATION_OUTPUT_VOLUME_KEY, String(gain));
   } catch {
@@ -225,13 +238,13 @@ function applyTranslationOutputGainFromControls() {
   }
 
   if (translationGainNode) {
-    translationGainNode.gain.value = gain;
+    translationGainNode.gain.value = effectiveGain;
     audioEl.volume = 1;
     return;
   }
 
-  /** Fallback without Web Audio: only 0–100 % via element.volume */
-  audioEl.volume = Math.min(1, gain);
+  /** Fallback without Web Audio: only 0–100 % via element.volume (no boost) */
+  audioEl.volume = Math.min(1, effectiveGain);
 }
 
 function initTranslationOutputVolume() {
