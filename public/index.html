@@ -138,17 +138,21 @@
               id="translation-output-volume"
               class="volume-row__range"
               min="0"
-              max="100"
+              max="250"
               value="100"
               step="1"
               aria-valuemin="0"
-              aria-valuemax="100"
+              aria-valuemax="250"
               aria-valuenow="100"
-              aria-label="Volume de la voix traduite"
+              aria-label="Volume de la voix traduite, jusqu'à 250 % avec boost audio"
             />
             <span id="translation-output-volume-value" class="volume-row__value" aria-live="polite">100%</span>
           </div>
         </label>
+        <p id="translation-volume-hint" class="field-hint">
+          100 % = niveau « normal » du flux. Au-delà, un boost numérique (Web Audio) augmente le volume ;
+          selon le casque ou les haut-parleurs, au-dessus de ~150 % la distorsion peut apparaître.
+        </p>
         <div class="actions">
           <button id="btn-translate" class="btn btn--primary" type="button">Démarrer</button>
           <button id="btn-stop-translate" class="btn btn--ghost" type="button" disabled>Arrêter</button>

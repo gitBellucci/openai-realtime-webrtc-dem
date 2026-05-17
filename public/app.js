@@ -160,51 +160,96 @@ function stopAssistant() {
 
 const TRANSLATION_OUTPUT_VOLUME_KEY = "phq-translation-output-volume";
 
+/** Max gain multiplier when using Web Audio (slider 250 % → 2.5×). */
+const TRANSLATION_OUTPUT_GAIN_MAX = 2.5;
+
+let translationAudioCtx = null;
+let translationGainNode = null;
+
 function getStoredTranslationOutputVolume() {
   try {
     const raw = localStorage.getItem(TRANSLATION_OUTPUT_VOLUME_KEY);
     if (raw == null) return 1;
     const n = parseFloat(raw);
-    if (Number.isFinite(n) && n >= 0 && n <= 1) return n;
+    if (Number.isFinite(n) && n >= 0 && n <= TRANSLATION_OUTPUT_GAIN_MAX) return n;
   } catch {
     /* private mode, etc. */
   }
   return 1;
 }
 
-function initTranslationOutputVolume() {
+/**
+ * Route the translation audio element through a GainNode so we can boost above 100 % (HTMLMediaElement.volume caps at 1).
+ */
+function ensureTranslationAudioGraph(audioEl) {
+  if (translationGainNode) return true;
+  const AC = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
+  if (!AC) return false;
+  try {
+    translationAudioCtx = new AC();
+    const src = translationAudioCtx.createMediaElementSource(audioEl);
+    translationGainNode = translationAudioCtx.createGain();
+    src.connect(translationGainNode);
+    translationGainNode.connect(translationAudioCtx.destination);
+    audioEl.volume = 1;
+    return true;
+  } catch (e) {
+    console.warn("Translation Web Audio graph failed:", e);
+    translationAudioCtx = null;
+    translationGainNode = null;
+    return false;
+  }
+}
+
+function translationGainFromSliderPercent(pct) {
+  const p = Math.min(250, Math.max(0, pct));
+  return p / 100;
+}
+
+function applyTranslationOutputGainFromControls() {
   const audioEl = document.getElementById("remote-audio-translate");
   const slider = document.getElementById("translation-output-volume");
   const valueEl = document.getElementById("translation-output-volume-value");
   if (!audioEl || !slider) return;
 
-  const pct = Math.round(getStoredTranslationOutputVolume() * 100);
+  const pct = Math.min(250, Math.max(0, Number(slider.value)));
   slider.value = String(pct);
-  audioEl.volume = pct / 100;
-  if (valueEl) valueEl.textContent = `${pct}%`;
   slider.setAttribute("aria-valuenow", String(pct));
+  if (valueEl) valueEl.textContent = `${pct}%`;
 
-  slider.addEventListener("input", () => {
-    const v = Math.min(100, Math.max(0, Number(slider.value)));
-    slider.value = String(v);
-    const vol = v / 100;
-    audioEl.volume = vol;
-    if (valueEl) valueEl.textContent = `${v}%`;
-    slider.setAttribute("aria-valuenow", String(v));
-    try {
-      localStorage.setItem(TRANSLATION_OUTPUT_VOLUME_KEY, String(vol));
-    } catch {
-      /* ignore */
-    }
-  });
+  const gain = translationGainFromSliderPercent(pct);
+  try {
+    localStorage.setItem(TRANSLATION_OUTPUT_VOLUME_KEY, String(gain));
+  } catch {
+    /* ignore */
+  }
+
+  if (translationGainNode) {
+    translationGainNode.gain.value = gain;
+    audioEl.volume = 1;
+    return;
+  }
+
+  /** Fallback without Web Audio: only 0–100 % via element.volume */
+  audioEl.volume = Math.min(1, gain);
 }
 
-function applyTranslationOutputVolumeFromControls() {
+function initTranslationOutputVolume() {
   const audioEl = document.getElementById("remote-audio-translate");
   const slider = document.getElementById("translation-output-volume");
   if (!audioEl || !slider) return;
-  const v = Math.min(100, Math.max(0, Number(slider.value)));
-  audioEl.volume = v / 100;
+
+  const stored = getStoredTranslationOutputVolume();
+  const pct = Math.min(250, Math.max(0, Math.round(stored * 100)));
+  slider.value = String(pct);
+  slider.setAttribute("aria-valuenow", String(pct));
+  const valueEl = document.getElementById("translation-output-volume-value");
+  if (valueEl) valueEl.textContent = `${pct}%`;
+
+  ensureTranslationAudioGraph(audioEl);
+  applyTranslationOutputGainFromControls();
+
+  slider.addEventListener("input", () => applyTranslationOutputGainFromControls());
 }
 
 let translatePc = null;
@@ -351,9 +396,17 @@ async function startLiveTranslate() {
   };
 
   audioEl.srcObject = new MediaStream();
-  pc.ontrack = ({ streams }) => {
+  pc.ontrack = async ({ streams }) => {
     audioEl.srcObject = streams[0];
-    applyTranslationOutputVolumeFromControls();
+    ensureTranslationAudioGraph(audioEl);
+    applyTranslationOutputGainFromControls();
+    if (translationAudioCtx?.state === "suspended") {
+      try {
+        await translationAudioCtx.resume();
+      } catch {
+        /* ignore */
+      }
+    }
     void audioEl.play().catch((err) => logLine(logEl, `remote audio play: ${err.message}`));
   };
 
