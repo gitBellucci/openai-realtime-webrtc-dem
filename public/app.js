@@ -158,113 +158,6 @@ function stopAssistant() {
 
 /* ---------- Live translation (gpt-realtime-translate) ---------- */
 
-const TRANSLATION_OUTPUT_VOLUME_KEY = "phq-translation-output-volume";
-
-/** Max gain multiplier when using Web Audio (slider 250 % → 2.5× before makeup). */
-const TRANSLATION_OUTPUT_GAIN_MAX = 2.5;
-
-/**
- * Translate model audio tends to be quieter than gpt-realtime-2; the assistant uses direct
- * audio element output while translation goes through a GainNode. Apply makeup so 100 % slider ≈ assistant loudness.
- */
-const TRANSLATION_OUTPUT_MAKEUP_GAIN = 1.42;
-
-/** Hard cap on effective gain (after makeup) to limit harsh clipping. */
-const TRANSLATION_OUTPUT_GAIN_CEILING = 2.85;
-
-let translationAudioCtx = null;
-let translationGainNode = null;
-
-function getStoredTranslationOutputVolume() {
-  try {
-    const raw = localStorage.getItem(TRANSLATION_OUTPUT_VOLUME_KEY);
-    if (raw == null) return 1;
-    const n = parseFloat(raw);
-    if (Number.isFinite(n) && n >= 0 && n <= TRANSLATION_OUTPUT_GAIN_MAX) return n;
-  } catch {
-    /* private mode, etc. */
-  }
-  return 1;
-}
-
-/**
- * Route the translation audio element through a GainNode so we can boost above 100 % (HTMLMediaElement.volume caps at 1).
- */
-function ensureTranslationAudioGraph(audioEl) {
-  if (translationGainNode) return true;
-  const AC = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
-  if (!AC) return false;
-  try {
-    translationAudioCtx = new AC();
-    const src = translationAudioCtx.createMediaElementSource(audioEl);
-    translationGainNode = translationAudioCtx.createGain();
-    src.connect(translationGainNode);
-    translationGainNode.connect(translationAudioCtx.destination);
-    audioEl.volume = 1;
-    return true;
-  } catch (e) {
-    console.warn("Translation Web Audio graph failed:", e);
-    translationAudioCtx = null;
-    translationGainNode = null;
-    return false;
-  }
-}
-
-function translationGainFromSliderPercent(pct) {
-  const p = Math.min(250, Math.max(0, pct));
-  return p / 100;
-}
-
-function applyTranslationOutputGainFromControls() {
-  const audioEl = document.getElementById("remote-audio-translate");
-  const slider = document.getElementById("translation-output-volume");
-  const valueEl = document.getElementById("translation-output-volume-value");
-  if (!audioEl || !slider) return;
-
-  const pct = Math.min(250, Math.max(0, Number(slider.value)));
-  slider.value = String(pct);
-  slider.setAttribute("aria-valuenow", String(pct));
-  if (valueEl) valueEl.textContent = `${pct}%`;
-
-  const gain = translationGainFromSliderPercent(pct);
-  const effectiveGain = Math.min(
-    TRANSLATION_OUTPUT_GAIN_CEILING,
-    gain * TRANSLATION_OUTPUT_MAKEUP_GAIN
-  );
-  try {
-    localStorage.setItem(TRANSLATION_OUTPUT_VOLUME_KEY, String(gain));
-  } catch {
-    /* ignore */
-  }
-
-  if (translationGainNode) {
-    translationGainNode.gain.value = effectiveGain;
-    audioEl.volume = 1;
-    return;
-  }
-
-  /** Fallback without Web Audio: only 0–100 % via element.volume (no boost) */
-  audioEl.volume = Math.min(1, effectiveGain);
-}
-
-function initTranslationOutputVolume() {
-  const audioEl = document.getElementById("remote-audio-translate");
-  const slider = document.getElementById("translation-output-volume");
-  if (!audioEl || !slider) return;
-
-  const stored = getStoredTranslationOutputVolume();
-  const pct = Math.min(250, Math.max(0, Math.round(stored * 100)));
-  slider.value = String(pct);
-  slider.setAttribute("aria-valuenow", String(pct));
-  const valueEl = document.getElementById("translation-output-volume-value");
-  if (valueEl) valueEl.textContent = `${pct}%`;
-
-  ensureTranslationAudioGraph(audioEl);
-  applyTranslationOutputGainFromControls();
-
-  slider.addEventListener("input", () => applyTranslationOutputGainFromControls());
-}
-
 let translatePc = null;
 let translateLocalStream = null;
 
@@ -409,18 +302,8 @@ async function startLiveTranslate() {
   };
 
   audioEl.srcObject = new MediaStream();
-  pc.ontrack = async ({ streams }) => {
-    audioEl.srcObject = streams[0];
-    ensureTranslationAudioGraph(audioEl);
-    applyTranslationOutputGainFromControls();
-    if (translationAudioCtx?.state === "suspended") {
-      try {
-        await translationAudioCtx.resume();
-      } catch {
-        /* ignore */
-      }
-    }
-    void audioEl.play().catch((err) => logLine(logEl, `remote audio play: ${err.message}`));
+  pc.ontrack = (e) => {
+    audioEl.srcObject = e.streams[0];
   };
 
   for (const track of ms.getTracks()) {
@@ -527,4 +410,3 @@ document.getElementById("theme-toggle")?.addEventListener("click", () => {
 });
 
 syncThemeControls();
-initTranslationOutputVolume();
