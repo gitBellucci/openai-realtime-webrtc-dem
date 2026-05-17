@@ -9,6 +9,21 @@ function appendTranscript(el, chunk) {
   el.scrollTop = el.scrollHeight;
 }
 
+/**
+ * Remote tracks arrive after the click handler stack unwinds; explicit play() avoids muted / deferred
+ * playback. Keeps volume at default unity — same perceived level as a normal media element.
+ */
+async function attachRemoteAudioElement(audioEl, stream, logEl) {
+  audioEl.srcObject = stream;
+  audioEl.muted = false;
+  audioEl.volume = 1;
+  try {
+    await audioEl.play();
+  } catch (err) {
+    if (logEl) logLine(logEl, `remote audio play: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 /** Assistant: gpt-realtime-2 via server multipart proxy */
 async function postAssistantSdp(sdp) {
   const r = await fetch("/api/realtime/call", {
@@ -121,7 +136,7 @@ async function startAssistant() {
 
   audioEl.srcObject = new MediaStream();
   pc.ontrack = (e) => {
-    audioEl.srcObject = e.streams[0];
+    void attachRemoteAudioElement(audioEl, e.streams[0], logEl);
   };
 
   const dc = pc.createDataChannel("oai-events");
@@ -147,11 +162,13 @@ async function startAssistant() {
 function stopAssistant() {
   const btn = document.getElementById("btn-assistant");
   const stopBtn = document.getElementById("btn-stop-assistant");
+  const audioEl = document.getElementById("remote-audio-assistant");
   if (assistantPc) {
     assistantPc.getSenders().forEach((s) => s.track?.stop());
     assistantPc.close();
     assistantPc = null;
   }
+  if (audioEl) audioEl.srcObject = null;
   btn.disabled = false;
   stopBtn.disabled = true;
 }
@@ -303,7 +320,7 @@ async function startLiveTranslate() {
 
   audioEl.srcObject = new MediaStream();
   pc.ontrack = (e) => {
-    audioEl.srcObject = e.streams[0];
+    void attachRemoteAudioElement(audioEl, e.streams[0], logEl);
   };
 
   for (const track of ms.getTracks()) {
@@ -338,6 +355,7 @@ function stopLiveTranslate() {
   const btn = document.getElementById("btn-translate");
   const stopBtn = document.getElementById("btn-stop-translate");
   const rawCheckbox = document.getElementById("translation-raw-mic");
+  const audioEl = document.getElementById("remote-audio-translate");
   resetTranslateIdleOverlays();
   if (translatePc) {
     translatePc.getSenders().forEach((s) => s.track?.stop());
@@ -346,6 +364,7 @@ function stopLiveTranslate() {
   }
   translateLocalStream?.getTracks().forEach((t) => t.stop());
   translateLocalStream = null;
+  if (audioEl) audioEl.srcObject = null;
   btn.disabled = false;
   stopBtn.disabled = true;
   rawCheckbox.disabled = false;

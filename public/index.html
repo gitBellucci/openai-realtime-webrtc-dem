@@ -134,7 +134,6 @@
           <button id="btn-translate" class="btn btn--primary" type="button">Démarrer</button>
           <button id="btn-stop-translate" class="btn btn--ghost" type="button" disabled>Arrêter</button>
         </div>
-        <audio id="remote-audio-translate" class="visually-hidden" autoplay playsinline></audio>
         <div class="subtitles">
           <div class="subtitle-card">
             <strong class="subtitle-card__label">Source (live)</strong>
@@ -199,10 +198,18 @@
           <button id="btn-assistant" class="btn btn--primary" type="button">Démarrer</button>
           <button id="btn-stop-assistant" class="btn btn--ghost" type="button" disabled>Arrêter</button>
         </div>
-        <audio id="remote-audio-assistant" class="visually-hidden" autoplay playsinline></audio>
         <pre id="log-assistant" class="log" aria-live="polite"></pre>
       </section>
     </main>
+
+    <!--
+      Keep WebRTC sink <audio> nodes outside tab panels: inactive panels use display:none, which can
+      throttle or skew Chromium's audio path for descendants. IDs unchanged for app.js.
+    -->
+    <div class="webrtc-remote-audio visually-hidden" aria-hidden="true">
+      <audio id="remote-audio-translate" autoplay playsinline></audio>
+      <audio id="remote-audio-assistant" autoplay playsinline></audio>
+    </div>
 
     <footer class="site-footer">
       <img class="site-footer__mark" src="/brand/svg/icon-02.svg" alt="" width="28" height="28" aria-hidden="true" />
