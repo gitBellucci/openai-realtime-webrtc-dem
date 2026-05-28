@@ -192,8 +192,29 @@ function showTranslateIdleOverlays() {
   if (trans) trans.hidden = false;
 }
 
+function formatGetUserMediaError(err) {
+  const name = err instanceof Error ? err.name : "";
+  const msg = err instanceof Error ? err.message : String(err);
+  if (name === "NotAllowedError" || /not allowed|denied permission/i.test(msg)) {
+    return (
+      `${msg}\n` +
+      "→ Autorisez le micro (popup ou Réglages → Safari → Microphone).\n" +
+      "→ Sur iPhone : quittez la navigation privée (Safari « Privée » bloque souvent le micro).\n" +
+      "→ Relancez Démarrer après avoir autorisé."
+    );
+  }
+  if (name === "NotFoundError") {
+    return `${msg}\n→ Aucun micro détecté sur cet appareil.`;
+  }
+  if (name === "NotSupportedError" || !navigator.mediaDevices?.getUserMedia) {
+    return `${msg}\n→ Micro non disponible dans ce navigateur ou ce contexte (essayez Safari/Chrome hors mode privé).`;
+  }
+  return msg;
+}
+
 async function getTranslationMicStream() {
-  return navigator.mediaDevices.getUserMedia({
+  const simple = { audio: true, video: false };
+  const rich = {
     audio: {
       channelCount: 1,
       echoCancellation: true,
@@ -201,7 +222,15 @@ async function getTranslationMicStream() {
       autoGainControl: true,
     },
     video: false,
-  });
+  };
+  try {
+    return await navigator.mediaDevices.getUserMedia(rich);
+  } catch (first) {
+    if (first?.name === "OverconstrainedError" || first?.name === "NotSupportedError") {
+      return navigator.mediaDevices.getUserMedia(simple);
+    }
+    throw first;
+  }
 }
 
 const OUTPUT_TRANSCRIPT_EVENTS = new Set(["session.output_transcript.delta"]);
@@ -249,6 +278,20 @@ async function startLiveTranslate() {
   btn.disabled = true;
   stopBtn.disabled = true;
 
+  // iOS Safari: getUserMedia must run in the same user-gesture turn as the tap.
+  // Do not await network I/O before requesting the microphone.
+  let ms;
+  try {
+    ms = await getTranslationMicStream();
+  } catch (e) {
+    logLine(logEl, `getUserMedia failed: ${formatGetUserMediaError(e)}`);
+    btn.disabled = false;
+    stopBtn.disabled = true;
+    return;
+  }
+
+  translateLocalStream = ms;
+
   const secretRes = await fetch("/api/translation/client-secret", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -257,6 +300,8 @@ async function startLiveTranslate() {
   const secretJson = await secretRes.json().catch(() => ({}));
   if (!secretRes.ok) {
     logLine(logEl, `client_secret error: ${JSON.stringify(secretJson)}`);
+    ms.getTracks().forEach((t) => t.stop());
+    translateLocalStream = null;
     btn.disabled = false;
     stopBtn.disabled = true;
     return;
@@ -267,22 +312,12 @@ async function startLiveTranslate() {
     (typeof secretJson.client_secret === "string" ? secretJson.client_secret : null);
   if (!clientSecret) {
     logLine(logEl, `unexpected client secret payload: ${JSON.stringify(secretJson)}`);
+    ms.getTracks().forEach((t) => t.stop());
+    translateLocalStream = null;
     btn.disabled = false;
     stopBtn.disabled = true;
     return;
   }
-
-  let ms;
-  try {
-    ms = await getTranslationMicStream();
-  } catch (e) {
-    logLine(logEl, `getUserMedia failed: ${e instanceof Error ? e.message : String(e)}`);
-    btn.disabled = false;
-    stopBtn.disabled = true;
-    return;
-  }
-
-  translateLocalStream = ms;
   for (const t of ms.getAudioTracks()) {
     t.addEventListener("mute", () => logLine(logEl, "mic track muted (browser gating — try headphones)"));
     t.addEventListener("unmute", () => logLine(logEl, "mic track unmuted"));
