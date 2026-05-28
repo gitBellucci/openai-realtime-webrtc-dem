@@ -125,6 +125,47 @@ function normalizeTargetLanguage(raw) {
   return null;
 }
 
+function translationSecretHeaders(apiKey) {
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  };
+  const safety = process.env.OPENAI_SAFETY_IDENTIFIER;
+  if (safety) headers["OpenAI-Safety-Identifier"] = safety;
+  return headers;
+}
+
+function buildTranslationSessionBody(targetLanguage, { nearField = false } = {}) {
+  return JSON.stringify({
+    session: {
+      model: "gpt-realtime-translate",
+      audio: {
+        input: {
+          transcription: { model: "gpt-realtime-whisper" },
+          noise_reduction: nearField ? { type: "near_field" } : null,
+        },
+        output: { language: targetLanguage },
+      },
+    },
+  });
+}
+
+async function mintTranslationClientSecret(apiKey, targetLanguage, options = {}) {
+  const r = await fetch(`${OPENAI_BASE}/v1/realtime/translations/client_secrets`, {
+    method: "POST",
+    headers: translationSecretHeaders(apiKey),
+    body: buildTranslationSessionBody(targetLanguage, options),
+  });
+  const text = await r.text();
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    json = { raw: text };
+  }
+  return { ok: r.ok, status: r.status, json, text };
+}
+
 /**
  * Short-lived secret for browser WebRTC to /v1/realtime/translations/calls.
  * Live simultaneous translation uses gpt-realtime-translate (not gpt-realtime-2).
@@ -143,34 +184,51 @@ app.post("/api/translation/client-secret", async (req, res) => {
     });
   }
 
-  const body = JSON.stringify({
-    session: {
-      model: "gpt-realtime-translate",
-      audio: {
-        input: {
-          transcription: { model: "gpt-realtime-whisper" },
-          noise_reduction: null,
-        },
-        output: { language: targetLanguage },
-      },
-    },
+  const result = await mintTranslationClientSecret(apiKey, targetLanguage);
+  res.status(result.status).type("application/json").send(result.text);
+});
+
+/**
+ * Two secrets for bidirectional conversation (one output language per direction).
+ * @see https://developers.openai.com/api/docs/guides/realtime-translation — conversational translation
+ */
+app.post("/api/translation/conversation-secrets", async (req, res) => {
+  const apiKey = getOpenAIApiKey();
+  if (!apiKey) {
+    return res.status(500).json({ error: `Server missing API key. ${missingKeyHint}` });
+  }
+
+  const myLanguage = normalizeTargetLanguage(req.body?.myLanguage);
+  const theirLanguage = normalizeTargetLanguage(req.body?.theirLanguage);
+  if (myLanguage === null || theirLanguage === null) {
+    return res.status(400).json({
+      error: "Unsupported language code",
+      supported: [...SUPPORTED_TRANSLATION_LANGUAGES].sort(),
+    });
+  }
+  if (myLanguage === theirLanguage) {
+    return res.status(400).json({ error: "myLanguage and theirLanguage must differ" });
+  }
+
+  const [toThemResult, toMeResult] = await Promise.all([
+    mintTranslationClientSecret(apiKey, theirLanguage, { nearField: true }),
+    mintTranslationClientSecret(apiKey, myLanguage, { nearField: true }),
+  ]);
+
+  if (!toThemResult.ok || !toMeResult.ok) {
+    return res.status(toThemResult.ok ? toMeResult.status : toThemResult.status).json({
+      error: "Failed to mint one or both translation secrets",
+      toThem: toThemResult.json,
+      toMe: toMeResult.json,
+    });
+  }
+
+  res.json({
+    myLanguage,
+    theirLanguage,
+    toThem: { outputLanguage: theirLanguage, secret: toThemResult.json },
+    toMe: { outputLanguage: myLanguage, secret: toMeResult.json },
   });
-
-  const headers = {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json",
-  };
-  const safety = process.env.OPENAI_SAFETY_IDENTIFIER;
-  if (safety) headers["OpenAI-Safety-Identifier"] = safety;
-
-  const r = await fetch(`${OPENAI_BASE}/v1/realtime/translations/client_secrets`, {
-    method: "POST",
-    headers,
-    body,
-  });
-
-  const text = await r.text();
-  res.status(r.status).type(r.headers.get("content-type") || "application/json").send(text);
 });
 
 app.listen(port, () => {

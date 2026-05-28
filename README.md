@@ -3,6 +3,7 @@
 Local Node + browser demo for OpenAI **Realtime** over **WebRTC**:
 
 - **Live translation** - `gpt-realtime-translate` (WebRTC to `/v1/realtime/translations/calls` after a server-minted `client_secret`). Source transcription uses **`gpt-realtime-whisper`**. Guide: https://developers.openai.com/api/docs/guides/realtime-translation
+- **Bilingual conversation** - two translation sessions (e.g. French ↔ Chinese) on one device; optional push-to-talk routing for the shared microphone.
 - **Voice assistant** - `gpt-realtime-2` on `/v1/realtime/calls` (multipart `sdp` + `session`), sample **`check_calendar`** tool.
 
 UI includes light/dark theme; assets under `public/brand/`.
@@ -49,6 +50,7 @@ Open http://localhost:8787
 |--------|------|---------|
 | GET | `/api/health` | Returns whether an API key is visible to the server (no secret values). Use on Vercel to debug env. |
 | POST | `/api/translation/client-secret` | Body `{"targetLanguage":"fr"}` -> OpenAI `client_secrets` for translate + whisper transcription |
+| POST | `/api/translation/conversation-secrets` | Body `{"myLanguage":"fr","theirLanguage":"zh"}` -> two `client_secrets` (bidirectional conversation) |
 | POST | `/api/realtime/call` | Body `{"sdp":"..."}` -> multipart to `/v1/realtime/calls` for `gpt-realtime-2` |
 
 ## Translation targets

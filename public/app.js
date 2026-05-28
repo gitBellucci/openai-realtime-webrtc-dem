@@ -1,6 +1,45 @@
+const OPENAI_TRANSLATIONS_CALLS = "https://api.openai.com/v1/realtime/translations/calls";
+
+const LANGUAGE_LABELS = {
+  es: "Espagnol",
+  pt: "Portugais",
+  fr: "Français",
+  ja: "Japonais",
+  ru: "Russe",
+  zh: "Chinois",
+  de: "Allemand",
+  ko: "Coréen",
+  hi: "Hindi",
+  id: "Indonésien",
+  vi: "Vietnamien",
+  it: "Italien",
+  en: "Anglais",
+};
+
 function logLine(el, msg) {
   el.textContent += `${new Date().toISOString().slice(11, 19)} ${msg}\n`;
   el.scrollTop = el.scrollHeight;
+}
+
+function extractClientSecret(json) {
+  return (
+    json?.value ||
+    json?.client_secret?.value ||
+    (typeof json?.client_secret === "string" ? json.client_secret : null)
+  );
+}
+
+async function postTranslationSdp(clientSecret, sdp) {
+  const r = await fetch(OPENAI_TRANSLATIONS_CALLS, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${clientSecret}`,
+      "Content-Type": "application/sdp",
+    },
+    body: sdp,
+  });
+  const text = await r.text();
+  return { ok: r.ok, status: r.status, text };
 }
 
 function appendTranscript(el, chunk) {
@@ -306,10 +345,7 @@ async function startLiveTranslate() {
     stopBtn.disabled = true;
     return;
   }
-  const clientSecret =
-    secretJson.value ||
-    secretJson.client_secret?.value ||
-    (typeof secretJson.client_secret === "string" ? secretJson.client_secret : null);
+  const clientSecret = extractClientSecret(secretJson);
   if (!clientSecret) {
     logLine(logEl, `unexpected client secret payload: ${JSON.stringify(secretJson)}`);
     ms.getTracks().forEach((t) => t.stop());
@@ -353,17 +389,9 @@ async function startLiveTranslate() {
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
 
-  const sdpRes = await fetch("https://api.openai.com/v1/realtime/translations/calls", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${clientSecret}`,
-      "Content-Type": "application/sdp",
-    },
-    body: offer.sdp,
-  });
-  const answerText = await sdpRes.text();
-  if (!sdpRes.ok) {
-    logLine(logEl, `translations/calls ${sdpRes.status}: ${answerText}`);
+  const { ok, status, text: answerText } = await postTranslationSdp(clientSecret, offer.sdp);
+  if (!ok) {
+    logLine(logEl, `translations/calls ${status}: ${answerText}`);
     stopLiveTranslate();
     return;
   }
@@ -387,6 +415,275 @@ function stopLiveTranslate() {
   btn.disabled = false;
   stopBtn.disabled = true;
 }
+
+/* ---------- Bilingual conversation (2 × gpt-realtime-translate) ---------- */
+
+let convMicStream = null;
+let convMicTrack = null;
+let convPttMode = "auto";
+let convToThem = null;
+let convToMe = null;
+const convLiveTimers = new Map();
+
+function languageLabel(code) {
+  const name = LANGUAGE_LABELS[code] || code;
+  return `${name} (${code})`;
+}
+
+function updateConversationLabels(myLang, theirLang) {
+  const forThem = document.getElementById("conv-label-for-them");
+  const forMe = document.getElementById("conv-label-for-me");
+  if (forThem) forThem.textContent = `Pour l’autre — ${languageLabel(theirLang)}`;
+  if (forMe) forMe.textContent = `Pour moi — ${languageLabel(myLang)}`;
+}
+
+function getConversationVolume() {
+  const el = document.getElementById("conv-volume");
+  const v = el ? Number(el.value) : 0.85;
+  return Number.isFinite(v) ? v : 0.85;
+}
+
+function applyConversationVolume() {
+  const v = getConversationVolume();
+  for (const id of ["remote-audio-conv-for-them", "remote-audio-conv-for-me"]) {
+    const el = document.getElementById(id);
+    if (el) el.volume = v;
+  }
+}
+
+function pulseConversationCard(cardEl) {
+  if (!cardEl) return;
+  cardEl.classList.add("subtitle-card--live");
+  const prev = convLiveTimers.get(cardEl);
+  if (prev) clearTimeout(prev);
+  convLiveTimers.set(
+    cardEl,
+    setTimeout(() => {
+      cardEl.classList.remove("subtitle-card--live");
+      convLiveTimers.delete(cardEl);
+    }, 1200)
+  );
+}
+
+function setConversationPttMode(mode) {
+  convPttMode = mode;
+  document.querySelectorAll(".ptt__btn").forEach((btn) => {
+    const on = btn.dataset.ptt === mode;
+    btn.classList.toggle("ptt__btn--active", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  applyConversationMicRouting();
+}
+
+function applyConversationMicRouting() {
+  if (!convToThem?.sender || !convToMe?.sender) return;
+  const toThemTrack = convPttMode === "them" ? null : convToThem.micTrack;
+  const toMeTrack = convPttMode === "me" ? null : convToMe.micTrack;
+  void convToThem.sender.replaceTrack(toThemTrack);
+  void convToMe.sender.replaceTrack(toMeTrack);
+}
+
+async function connectConversationSession({
+  clientSecret,
+  micTrack,
+  audioEl,
+  logEl,
+  outEl,
+  cardEl,
+  label,
+}) {
+  const pc = new RTCPeerConnection();
+  const stream = new MediaStream([micTrack.clone()]);
+  const sender = pc.addTrack(stream.getAudioTracks()[0], stream);
+
+  const dc = pc.createDataChannel("oai-events");
+  dc.addEventListener("message", (e) => {
+    let data;
+    try {
+      data = JSON.parse(e.data);
+    } catch {
+      return;
+    }
+    if (data.type === "error" || data.type === "invalid_request_error") {
+      logLine(logEl, `[${label}] error: ${JSON.stringify(data)}`);
+      return;
+    }
+    if (OUTPUT_TRANSCRIPT_EVENTS.has(data.type) && typeof data.delta === "string") {
+      appendTranscript(outEl, data.delta);
+      pulseConversationCard(cardEl);
+    }
+  });
+  dc.addEventListener("open", () => logLine(logEl, `[${label}] oai-events open`));
+
+  audioEl.srcObject = new MediaStream();
+  pc.ontrack = (e) => {
+    void attachRemoteAudioElement(audioEl, e.streams[0], logEl);
+    applyConversationVolume();
+  };
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+
+  const { ok, status, text } = await postTranslationSdp(clientSecret, offer.sdp);
+  if (!ok) {
+    throw new Error(`translations/calls ${status}: ${text}`);
+  }
+  await pc.setRemoteDescription({ type: "answer", sdp: text });
+  return { pc, sender, stream, micTrack: stream.getAudioTracks()[0] };
+}
+
+async function startConversation() {
+  const logEl = document.getElementById("log-conversation");
+  const btn = document.getElementById("btn-conversation");
+  const stopBtn = document.getElementById("btn-stop-conversation");
+  const myLang = document.getElementById("conv-my-lang")?.value || "fr";
+  const theirLang = document.getElementById("conv-their-lang")?.value || "zh";
+
+  if (myLang === theirLang) {
+    logLine(logEl, "Choisissez deux langues différentes.");
+    return;
+  }
+
+  stopLiveTranslate();
+  stopAssistant();
+
+  logEl.textContent = "";
+  document.getElementById("conv-out-for-them").textContent = "";
+  document.getElementById("conv-out-for-me").textContent = "";
+  updateConversationLabels(myLang, theirLang);
+
+  btn.disabled = true;
+  stopBtn.disabled = true;
+
+  let ms;
+  try {
+    ms = await getTranslationMicStream();
+  } catch (e) {
+    logLine(logEl, `getUserMedia failed: ${formatGetUserMediaError(e)}`);
+    btn.disabled = false;
+    return;
+  }
+
+  convMicStream = ms;
+  convMicTrack = ms.getAudioTracks()[0] || null;
+  if (!convMicTrack) {
+    logLine(logEl, "Aucune piste micro.");
+    ms.getTracks().forEach((t) => t.stop());
+    convMicStream = null;
+    btn.disabled = false;
+    return;
+  }
+
+  const secretRes = await fetch("/api/translation/conversation-secrets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ myLanguage: myLang, theirLanguage: theirLang }),
+  });
+  const secretJson = await secretRes.json().catch(() => ({}));
+  if (!secretRes.ok) {
+    logLine(logEl, `conversation-secrets error: ${JSON.stringify(secretJson)}`);
+    stopConversation();
+    return;
+  }
+
+  const secretToThem = extractClientSecret(secretJson.toThem?.secret);
+  const secretToMe = extractClientSecret(secretJson.toMe?.secret);
+  if (!secretToThem || !secretToMe) {
+    logLine(logEl, `unexpected secrets: ${JSON.stringify(secretJson)}`);
+    stopConversation();
+    return;
+  }
+
+  const audioForThem = document.getElementById("remote-audio-conv-for-them");
+  const audioForMe = document.getElementById("remote-audio-conv-for-me");
+  const outForThem = document.getElementById("conv-out-for-them");
+  const outForMe = document.getElementById("conv-out-for-me");
+  const cardForThem = document.getElementById("conv-card-for-them");
+  const cardForMe = document.getElementById("conv-card-for-me");
+
+  try {
+    logLine(logEl, `sessions: vous → ${theirLang}, autre → ${myLang}`);
+    convToThem = await connectConversationSession({
+      clientSecret: secretToThem,
+      micTrack: convMicTrack,
+      audioEl: audioForThem,
+      logEl,
+      outEl: outForThem,
+      cardEl: cardForThem,
+      label: "pour l’autre",
+    });
+    convToMe = await connectConversationSession({
+      clientSecret: secretToMe,
+      micTrack: convMicTrack,
+      audioEl: audioForMe,
+      logEl,
+      outEl: outForMe,
+      cardEl: cardForMe,
+      label: "pour moi",
+    });
+  } catch (err) {
+    logLine(logEl, String(err instanceof Error ? err.message : err));
+    stopConversation();
+    return;
+  }
+
+  applyConversationMicRouting();
+  applyConversationVolume();
+  stopBtn.disabled = false;
+  logLine(logEl, "conversation connectée — parlez tour à tour ou utilisez les boutons micro");
+}
+
+function stopConversation() {
+  const btn = document.getElementById("btn-conversation");
+  const stopBtn = document.getElementById("btn-stop-conversation");
+
+  for (const session of [convToThem, convToMe]) {
+    if (!session) continue;
+    session.pc.getSenders().forEach((s) => s.track?.stop());
+    session.stream?.getTracks().forEach((t) => t.stop());
+    session.pc.close();
+  }
+  convToThem = null;
+  convToMe = null;
+
+  convMicStream?.getTracks().forEach((t) => t.stop());
+  convMicStream = null;
+  convMicTrack = null;
+
+  for (const id of ["remote-audio-conv-for-them", "remote-audio-conv-for-me"]) {
+    const el = document.getElementById(id);
+    if (el) el.srcObject = null;
+  }
+
+  for (const card of convLiveTimers.keys()) {
+    card.classList.remove("subtitle-card--live");
+  }
+  convLiveTimers.clear();
+
+  btn.disabled = false;
+  stopBtn.disabled = true;
+}
+
+document.querySelectorAll(".ptt__btn").forEach((btn) => {
+  btn.addEventListener("click", () => setConversationPttMode(btn.dataset.ptt || "auto"));
+});
+
+document.getElementById("conv-volume")?.addEventListener("input", applyConversationVolume);
+document.getElementById("conv-my-lang")?.addEventListener("change", () => {
+  const my = document.getElementById("conv-my-lang")?.value;
+  const their = document.getElementById("conv-their-lang")?.value;
+  if (my && their) updateConversationLabels(my, their);
+});
+document.getElementById("conv-their-lang")?.addEventListener("change", () => {
+  const my = document.getElementById("conv-my-lang")?.value;
+  const their = document.getElementById("conv-their-lang")?.value;
+  if (my && their) updateConversationLabels(my, their);
+});
+
+document.getElementById("btn-conversation")?.addEventListener("click", startConversation);
+document.getElementById("btn-stop-conversation")?.addEventListener("click", stopConversation);
+
+updateConversationLabels("fr", "zh");
 
 /* ---------- Tabs ---------- */
 
