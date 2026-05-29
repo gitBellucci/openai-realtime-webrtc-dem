@@ -3,7 +3,7 @@
 Local Node + browser demo for OpenAI **Realtime** over **WebRTC**:
 
 - **Live translation** - `gpt-realtime-translate` (WebRTC to `/v1/realtime/translations/calls` after a server-minted `client_secret`). Source transcription uses **`gpt-realtime-whisper`**. Guide: https://developers.openai.com/api/docs/guides/realtime-translation
-- **Bilingual conversation** - two translation sessions (e.g. French ↔ Chinese) on one device; optional push-to-talk routing for the shared microphone.
+- **Ping-pong conversation** - fullscreen red/blue split; hold your side to speak your language and hear translation in the other side’s language (one session per hold).
 - **Voice assistant** - `gpt-realtime-2` on `/v1/realtime/calls` (multipart `sdp` + `session`), sample **`check_calendar`** tool.
 
 UI includes light/dark theme; assets under `public/brand/`.

@@ -184,99 +184,73 @@
         <pre id="log-translate" class="log" aria-live="polite"></pre>
       </section>
 
-      <section id="panel-conversation" class="panel" role="tabpanel">
-        <div class="panel__head">
-          <img class="panel__icon" src="/brand/svg/icon-black.svg" alt="" width="36" height="36" aria-hidden="true" />
-          <div>
-            <h2 class="panel__title">Conversation bilingue</h2>
-            <p class="panel__meta">2 × <code>gpt-realtime-translate</code></p>
-          </div>
-        </div>
-        <p class="panel__text">
-          Deux personnes, <strong>un téléphone</strong> : placez l’appareil entre vous. Chacun parle sa langue ;
-          l’autre entend la traduction dans sa langue. Deux sessions WebRTC (une par direction), comme recommandé par
-          <a href="https://developers.openai.com/api/docs/guides/realtime-translation">OpenAI</a>.
-        </p>
-        <p class="hint">
-          <strong>Conseil :</strong> parlez l’un après l’autre, volume modéré, ou utilisez les boutons « Je parle » /
-          « L’autre parle » pour éviter que le micro mélange les voix.
-        </p>
-        <p class="hint">
-          <strong>iPhone :</strong> Safari hors mode Privée, micro autorisé. Casque ou volume bas limite l’écho.
-        </p>
-        <div class="lang-row">
-          <label class="field">
-            <span class="field__label">Ma langue</span>
-            <select id="conv-my-lang" class="field__input">
-              <option value="fr" selected>Français (fr)</option>
-              <option value="en">Anglais (en)</option>
-              <option value="es">Espagnol (es)</option>
-              <option value="pt">Portugais (pt)</option>
-              <option value="ja">Japonais (ja)</option>
-              <option value="ru">Russe (ru)</option>
-              <option value="zh">Chinois (zh)</option>
-              <option value="de">Allemand (de)</option>
-              <option value="ko">Coréen (ko)</option>
-              <option value="hi">Hindi (hi)</option>
-              <option value="id">Indonésien (id)</option>
-              <option value="vi">Vietnamien (vi)</option>
-              <option value="it">Italien (it)</option>
-            </select>
-          </label>
-          <label class="field">
-            <span class="field__label">Langue de l’autre</span>
-            <select id="conv-their-lang" class="field__input">
-              <option value="fr">Français (fr)</option>
-              <option value="en">Anglais (en)</option>
-              <option value="es">Espagnol (es)</option>
-              <option value="pt">Portugais (pt)</option>
-              <option value="ja">Japonais (ja)</option>
-              <option value="ru">Russe (ru)</option>
-              <option value="zh" selected>Chinois (zh)</option>
-              <option value="de">Allemand (de)</option>
-              <option value="ko">Coréen (ko)</option>
-              <option value="hi">Hindi (hi)</option>
-              <option value="id">Indonésien (id)</option>
-              <option value="vi">Vietnamien (vi)</option>
-              <option value="it">Italien (it)</option>
-            </select>
-          </label>
-        </div>
-        <fieldset class="ptt-fieldset">
-          <legend class="field__label">Qui parle au micro</legend>
-          <div class="ptt" role="group" aria-label="Mode micro">
-            <button type="button" class="ptt__btn ptt__btn--active" data-ptt="auto" aria-pressed="true">
-              Automatique
-            </button>
-            <button type="button" class="ptt__btn" data-ptt="me" aria-pressed="false">Je parle</button>
-            <button type="button" class="ptt__btn" data-ptt="them" aria-pressed="false">L’autre parle</button>
-          </div>
-        </fieldset>
-        <label class="field field--range">
-          <span class="field__label">Volume traduction</span>
-          <input id="conv-volume" class="field__range" type="range" min="0.2" max="1" step="0.05" value="0.85" />
-        </label>
-        <div class="actions">
-          <button id="btn-conversation" class="btn btn--primary" type="button">Démarrer</button>
-          <button id="btn-stop-conversation" class="btn btn--ghost" type="button" disabled>Arrêter</button>
-        </div>
-        <div class="subtitles subtitles--conversation">
-          <div class="subtitle-card subtitle-card--for-them" id="conv-card-for-them">
-            <strong class="subtitle-card__label" id="conv-label-for-them">Pour l’autre (zh)</strong>
-            <p class="subtitle-card__hint">Quand vous parlez — ils entendent cette traduction</p>
-            <div class="subtitle-card__body">
-              <pre id="conv-out-for-them" class="transcript transcript--chat"></pre>
+      <section id="panel-conversation" class="panel panel--pingpong" role="tabpanel" aria-label="Conversation ping-pong">
+        <div class="pingpong">
+          <div
+            id="pingpong-red"
+            class="pingpong__half pingpong__half--red"
+            data-side="red"
+            aria-label="Interlocuteur rouge — maintenir pour parler"
+          >
+            <div class="pingpong__content">
+              <span class="pingpong__badge">A</span>
+              <label class="pingpong__field">
+                <span class="pingpong__field-label">Je parle</span>
+                <select id="pingpong-red-lang" class="pingpong__select">
+                  <option value="en" selected>Anglais (en)</option>
+                  <option value="fr">Français (fr)</option>
+                  <option value="es">Espagnol (es)</option>
+                  <option value="pt">Portugais (pt)</option>
+                  <option value="ja">Japonais (ja)</option>
+                  <option value="ru">Russe (ru)</option>
+                  <option value="zh">Chinois (zh)</option>
+                  <option value="de">Allemand (de)</option>
+                  <option value="ko">Coréen (ko)</option>
+                  <option value="hi">Hindi (hi)</option>
+                  <option value="id">Indonésien (id)</option>
+                  <option value="vi">Vietnamien (vi)</option>
+                  <option value="it">Italien (it)</option>
+                </select>
+              </label>
+              <p id="pingpong-red-hint" class="pingpong__hold-hint">Maintenir cette zone pour parler</p>
+              <p id="pingpong-red-status" class="pingpong__status" aria-live="polite"></p>
+              <pre id="pingpong-red-out" class="pingpong__transcript"></pre>
             </div>
           </div>
-          <div class="subtitle-card subtitle-card--for-me" id="conv-card-for-me">
-            <strong class="subtitle-card__label" id="conv-label-for-me">Pour moi (fr)</strong>
-            <p class="subtitle-card__hint">Quand l’autre parle — vous entendez cette traduction</p>
-            <div class="subtitle-card__body">
-              <pre id="conv-out-for-me" class="transcript transcript--chat"></pre>
+          <div class="pingpong__divider" aria-hidden="true"></div>
+          <div
+            id="pingpong-blue"
+            class="pingpong__half pingpong__half--blue"
+            data-side="blue"
+            aria-label="Interlocuteur bleu — maintenir pour parler"
+          >
+            <div class="pingpong__content">
+              <span class="pingpong__badge">B</span>
+              <label class="pingpong__field">
+                <span class="pingpong__field-label">Je parle</span>
+                <select id="pingpong-blue-lang" class="pingpong__select">
+                  <option value="en">Anglais (en)</option>
+                  <option value="fr" selected>Français (fr)</option>
+                  <option value="es">Espagnol (es)</option>
+                  <option value="pt">Portugais (pt)</option>
+                  <option value="ja">Japonais (ja)</option>
+                  <option value="ru">Russe (ru)</option>
+                  <option value="zh">Chinois (zh)</option>
+                  <option value="de">Allemand (de)</option>
+                  <option value="ko">Coréen (ko)</option>
+                  <option value="hi">Hindi (hi)</option>
+                  <option value="id">Indonésien (id)</option>
+                  <option value="vi">Vietnamien (vi)</option>
+                  <option value="it">Italien (it)</option>
+                </select>
+              </label>
+              <p id="pingpong-blue-hint" class="pingpong__hold-hint">Maintenir cette zone pour parler</p>
+              <p id="pingpong-blue-status" class="pingpong__status" aria-live="polite"></p>
+              <pre id="pingpong-blue-out" class="pingpong__transcript"></pre>
             </div>
           </div>
         </div>
-        <pre id="log-conversation" class="log" aria-live="polite"></pre>
+        <pre id="log-conversation" class="pingpong__log visually-hidden" aria-live="polite"></pre>
       </section>
 
       <section id="panel-assistant" class="panel" role="tabpanel">
@@ -305,8 +279,7 @@
     -->
     <div class="webrtc-remote-audio visually-hidden" aria-hidden="true">
       <audio id="remote-audio-translate" autoplay playsinline></audio>
-      <audio id="remote-audio-conv-for-them" autoplay playsinline></audio>
-      <audio id="remote-audio-conv-for-me" autoplay playsinline></audio>
+      <audio id="remote-audio-pingpong" autoplay playsinline></audio>
       <audio id="remote-audio-assistant" autoplay playsinline></audio>
     </div>
 
